@@ -1,0 +1,100 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/02/ALU.hdl
+
+/**
+ * The ALU (Arithmetic Logic Unit).
+ * Computes one of the following functions:
+ * x+y, x-y, y-x, 0, 1, -1, x, y, -x, -y, !x, !y,
+ * x+1, y+1, x-1, y-1, x&y, x|y on two 16-bit inputs, 
+ * according to 6 input bits denoted zx,nx,zy,ny,f,no.
+ * In addition, the ALU computes two 1-bit outputs:
+ * if the ALU output == 0, zr is set to 1; otherwise zr is set to 0;
+ * if the ALU output < 0, ng is set to 1; otherwise ng is set to 0.
+ */
+
+// Implementation: the ALU logic manipulates the x and y inputs
+// and operates on the resulting values, as follows:
+// if (zx == 1) set x = 0        // 16-bit constant
+// if (nx == 1) set x = !x       // bitwise not
+// if (zy == 1) set y = 0        // 16-bit constant
+// if (ny == 1) set y = !y       // bitwise not
+// if (f == 1)  set out = x + y  // integer 2's complement addition
+// if (f == 0)  set out = x & y  // bitwise and
+// if (no == 1) set out = !out   // bitwise not
+// if (out == 0) set zr = 1
+// if (out < 0) set ng = 1
+
+CHIP ALU {
+    IN  
+        x[16], y[16],  // 16-bit inputs        
+        zx, // zero the x input?
+        nx, // negate the x input?
+        zy, // zero the y input?
+        ny, // negate the y input?
+        f,  // compute out = x + y (if 1) or x & y (if 0)
+        no; // negate the out output?
+
+    OUT 
+        out[16], // 16-bit output
+        zr, // 1 if (out == 0), 0 otherwise
+        ng; // 1 if (out < 0),  0 otherwise
+
+    PARTS:
+		// zx operation
+		Mux16(a=x,b=false,sel=zx,out=x1);
+		
+		// nx operation
+		Not16(in=x1,out=x1not);
+		Mux16(a=x1,b=x1not,sel=nx,out=x2);
+		
+		// zy operation
+		Mux16(a=y,b=false,sel=zy,out=y1);
+		
+		// ny operation
+		Not16(in=y1,out=y1not);
+		Mux16(a=y1,b=y1not,sel=ny,out=y2);
+		
+		// f operation
+		Add16(a=x2,b=y2,out=sumxy);
+		And16(a=x2,b=y2,out=andxy);
+		Mux16(a=andxy,b=sumxy,sel=f,out=fres);
+		
+		// no operation
+		Not16(in=fres,out=fresnot);
+		Mux16(a=fres,b=fresnot,sel=no,out=out,out[0..7]=tmp1,out[8..15]=tmp2,out[15]=tmpng);
+		
+		// manage output variable zr
+		Or8Way(in=tmp1,out=tmp3);
+		Or8Way(in=tmp2,out=tmp4);
+		Or(a=tmp3,b=tmp4,out=tmp5);
+		Not(in=tmp3,out=zr);
+		
+		// layer 1
+		//Not16(in=tmpout,out=notout);
+		//And(a=false,b=true,out=tmp1);
+		//And(a=notout[2],b=notout[3],out=tmp2);
+		//And(a=notout[4],b=notout[5],out=tmp3);
+		//And(a=notout[6],b=notout[7],out=tmp4);
+		//And(a=notout[8],b=notout[9],out=tmp5);
+		//And(a=notout[10],b=notout[11],out=tmp6);
+		//And(a=notout[12],b=notout[13],out=tmp7);
+		//And(a=notout[14],b=notout[15],out=tmp8);
+		
+		// layer 2
+		//And(a=tmp1,b=tmp2,out=l2tmp1);
+		//And(a=tmp3,b=tmp4,out=l2tmp2);
+		//And(a=tmp5,b=tmp6,out=l2tmp3);
+		//And(a=tmp7,b=tmp8,out=l2tmp4);
+		
+		// layer 3
+		//And(a=l2tmp1,b=l2tmp2,out=l3tmp1);
+		//And(a=l2tmp3,b=l2tmp4,out=l3tmp2);
+		
+		// layer 4
+		//And(a=l3tmp1,b=l3tmp2,out=zr);
+		
+		// manage output variable ng
+		And(a=tmpng,b=true,out=ng);
+}
